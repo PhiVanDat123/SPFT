@@ -1,0 +1,41 @@
+data:
+  train_files: data/numina_cot/train.parquet
+  val_files: data/numina_cot/test.parquet
+  train_batch_size: 256
+  micro_batch_size_per_gpu: 8
+  max_length: 2048
+  num_workers: 2
+model:
+  partial_pretrain: Qwen/Qwen2.5-Math-1.5B
+  revision: main
+  use_liger: false
+  gradient_checkpointing: true
+  attention: flash_attention_2
+optim:
+  loss_mode: dft
+  lr: 0.00005
+  betas: [0.9, 0.95]
+  eps: 1.0e-8
+  weight_decay: 0.01
+  warmup_steps_ratio: 0.1
+  clip_grad: 1.0
+  spft:
+    lambda: 0.1
+    eps: 1.0e-6
+    weight_threshold: 0.01
+    reference_cpu_offload: false
+trainer:
+  seed: 1
+  total_epochs: 1
+  max_steps: null
+  test_freq: 10
+  save_freq: -1
+  default_local_dir: checkpoints/${optim.loss_mode}
+  project_name: final-spft
+  experiment_name: ${optim.loss_mode}
+  wandb: false
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}-${oc.env:RANK,0}

@@ -1,0 +1,15 @@
+# Prefer a separate evaluation environment to avoid changing the training stack.
+vllm==0.8.5
+transformers==4.51.1
+datasets>=3.0,<6
+numpy
+tqdm
+sympy==1.13.1
+antlr4-python3-runtime==4.11.1
+word2number
+Pebble
+timeout-decorator
+regex
+python-dateutil
+multiprocess
+# latex2sympy is vendored from upstream; eval_dft.sh sets its import path.

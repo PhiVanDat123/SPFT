@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+*.egg-info/
+.cache/
+outputs/
+wandb/
+verl/data/
+math_evaluation/data/
+verl/eval_outputs/
+verl/checkpoints/*
+!verl/checkpoints/.gitkeep
