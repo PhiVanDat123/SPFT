@@ -22,7 +22,7 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.utils.data import DataLoader, DistributedSampler
 from transformers import AutoModelForCausalLM, AutoTokenizer, get_cosine_schedule_with_warmup, set_seed
 
-from .data import NuminaDataset, ValidationSampler
+from .data import ValidationSampler, build_dataset
 from .spft import normalized_backward_loss, token_weights
 
 
@@ -148,8 +148,9 @@ def run(config):
     tokenizer = AutoTokenizer.from_pretrained(config.model.partial_pretrain, revision=config.model.revision)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
-    train_data = NuminaDataset(config.data.train_files, tokenizer, config.data.max_length)
-    val_data = NuminaDataset(config.data.val_files, tokenizer, config.data.max_length)
+    dataset_type = getattr(config.data, "dataset_type", "numina")
+    train_data = build_dataset(dataset_type, config.data.train_files, tokenizer, config.data.max_length)
+    val_data = build_dataset(dataset_type, config.data.val_files, tokenizer, config.data.max_length)
     train_sampler = DistributedSampler(
         train_data, num_replicas=world_size, rank=rank, seed=config.trainer.seed, drop_last=True,
     )

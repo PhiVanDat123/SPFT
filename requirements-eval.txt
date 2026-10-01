@@ -1,5 +1,6 @@
 # Prefer a separate evaluation environment to avoid changing the training stack.
 vllm==0.8.5
+evalplus[vllm]
 transformers==4.51.1
 datasets>=3.0,<6
 numpy

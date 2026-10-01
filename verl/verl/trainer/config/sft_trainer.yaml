@@ -1,4 +1,5 @@
 data:
+  dataset_type: numina
   train_files: data/numina_cot/train.parquet
   val_files: data/numina_cot/test.parquet
   train_batch_size: 256

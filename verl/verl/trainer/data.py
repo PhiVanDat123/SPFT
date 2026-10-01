@@ -1,10 +1,12 @@
-"""Single-turn Numina data, matching upstream DFT's prompt/response boundary."""
+"""Single-turn SFT datasets, matching upstream DFT's prompt/response boundary."""
 
 import torch
 from torch.utils.data import Dataset, Sampler
 
 
-class NuminaDataset(Dataset):
+class PromptResponseDataset(Dataset):
+    """Parquet dataset with extra_info.question and extra_info.answer."""
+
     def __init__(self, path, tokenizer, max_length):
         import pyarrow.parquet as pq
 
@@ -19,17 +21,21 @@ class NuminaDataset(Dataset):
     def __len__(self):
         return len(self.rows)
 
+    def row_text(self, row):
+        return row["question"], row["answer"]
+
     def __getitem__(self, index):
         # Validation pads shards with a real forward but zero metric contribution.
         dummy = index == -1
         row = self.rows[0 if dummy else index]
+        question, answer = self.row_text(row)
         prompt = self.tokenizer.apply_chat_template(
-            [{"role": "user", "content": row["question"]}],
+            [{"role": "user", "content": question}],
             tokenize=False, add_generation_prompt=True,
         )
         prompt_ids = self.tokenizer.encode(prompt, add_special_tokens=False)
         answer_ids = self.tokenizer.encode(
-            row["answer"] + self.tokenizer.eos_token, add_special_tokens=False,
+            answer + self.tokenizer.eos_token, add_special_tokens=False,
         )
         ids = (prompt_ids + answer_ids)[:self.max_length]
         length = len(ids)
@@ -46,6 +52,28 @@ class NuminaDataset(Dataset):
             "position_ids": (attention.long().cumsum(0) - 1).clamp_min(0),
             "loss_mask": mask,
         }
+
+
+class NuminaDataset(PromptResponseDataset):
+    pass
+
+
+class UltraFeedbackDataset(PromptResponseDataset):
+    pass
+
+
+DATASETS = {
+    "numina": NuminaDataset,
+    "ultrafeedback": UltraFeedbackDataset,
+}
+
+
+def build_dataset(dataset_type, path, tokenizer, max_length):
+    try:
+        dataset_cls = DATASETS[dataset_type]
+    except KeyError as exc:
+        raise ValueError(f"Unknown dataset_type {dataset_type!r}; choose {sorted(DATASETS)}") from exc
+    return dataset_cls(path, tokenizer, max_length)
 
 
 class ValidationSampler(Sampler):

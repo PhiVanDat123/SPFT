@@ -21,6 +21,7 @@ val_file="${VAL_FILE:-${script_dir}/data/numina_cot/test.parquet}"
 save_path="${SAVE_PATH:-${script_dir}/checkpoints/${run_name}}"
 cmd=("$python_bin" -m torch.distributed.run --standalone --nnodes=1 "--nproc_per_node=$gpus"
     -m verl.trainer.fsdp_dft_trainer
+    "data.dataset_type='${DATASET_TYPE:-numina}'"
     "data.train_files='$train_file'" "data.val_files='$val_file'"
     "data.train_batch_size=$global_batch" "data.micro_batch_size_per_gpu=$micro_batch"
     "data.max_length=${MAX_LENGTH:-2048}"
