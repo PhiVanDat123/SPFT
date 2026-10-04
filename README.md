@@ -63,3 +63,4 @@ MODEL_NAME_OR_PATH=/path/to/checkpoint CODEGEN_EVALS=humaneval,multiple MULTIPLE
 ```
 
 `MULTIPLE_LANGS` defaults to `py,cpp,java,php,ts,cs,sh,js`, matching the paper columns Python/C++/Java/PHP/TS/C#/Bash/JS. EvalPlus and MultiPL-E download their benchmark data as needed. Outputs default to `verl/codegen_eval_outputs/...`.
+MultiPL-E generation uses `automodel_vllm.py` by default (`MULTIPLE_BACKEND=vllm`) and passes `MULTIPLE_NUM_GPUS` to vLLM, defaulting to `EVAL_TP`/`N_GPUS`/`1`. Set `MULTIPLE_BACKEND=transformers` to use MultiPL-E's non-vLLM `automodel.py`.

@@ -54,3 +54,11 @@ def test_summary_ignores_unrequested_files(tmp_path):
     summary = json.loads((tmp_path / "eval_metrics_summary.json").read_text())
     assert summary["avg"]["mean_acc"] == 30
     assert "stale" not in summary
+
+
+def test_codegen_eval_multiple_defaults_to_vllm():
+    script = (ROOT / "verl" / "eval_codegen.sh").read_text()
+    assert 'multiple_backend="${MULTIPLE_BACKEND:-vllm}"' in script
+    assert "automodel_vllm.py" in script
+    assert "--num-gpus" in script
+    assert "MULTIPLE_BACKEND=transformers" in script
