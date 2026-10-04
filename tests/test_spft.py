@@ -8,6 +8,7 @@ def test_reference_equality_and_lambda_zero():
     assert torch.allclose(spft_token_weights(logp, logp, 0.1), logp.exp() / 2)
     assert torch.allclose(spft_token_weights(logp, logp - 2, 0), logp.exp() / 2)
     assert not spft_token_weights(logp, logp).requires_grad
+    torch.testing.assert_close(token_weights(logp, "sft"), torch.ones_like(logp))
 
 
 def test_preference_direction_and_stability():
@@ -26,7 +27,7 @@ def test_invalid_parameters(lambda_, eps):
         spft_token_weights(torch.zeros(2), torch.zeros(2), lambda_, eps)
 
 
-@pytest.mark.parametrize("mode", ["dft", "spft"])
+@pytest.mark.parametrize("mode", ["sft", "dft", "spft"])
 @pytest.mark.parametrize("micro", [1, 2, 4])
 def test_accumulation_matches_global_token_gradient(mode, micro):
     torch.manual_seed(7)

@@ -24,6 +24,21 @@ def test_sweep_dry_run(mode, gpus):
     assert any(str(ROOT) in arg for arg in args)
 
 
+@pytest.mark.parametrize("mode", ["sft", "dft", "spft"])
+def test_codegen_sweep_dry_run(mode):
+    result = subprocess.run(
+        ["bash", str(ROOT / "verl" / f"sweep_codegen_{mode}.sh"), "trainer.max_steps=2"],
+        env={**os.environ, "DRY_RUN": "1", "N_GPUS": "1"},
+        check=True, capture_output=True, text=True,
+    )
+    args = shlex.split(result.stdout)
+    assert "data.dataset_type=ultrafeedback" in args
+    assert f"optim.loss_mode={mode}" in args
+    assert "data.train_batch_size=16" in args
+    assert "optim.warmup_steps_ratio=0.05" in args
+    assert "trainer.total_epochs=1" in args
+
+
 def test_reject_invalid_batch():
     result = subprocess.run(
         ["bash", str(ROOT / "verl/train.sh")],

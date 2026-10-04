@@ -113,8 +113,8 @@ def validate(model, reference, loader, config, device):
 def run(config):
     if not torch.cuda.is_available():
         raise RuntimeError("Training requires CUDA; use torchrun via the sweep scripts")
-    if config.optim.loss_mode not in {"dft", "spft"}:
-        raise ValueError("Only dft and spft are supported")
+    if config.optim.loss_mode not in {"sft", "dft", "spft"}:
+        raise ValueError("Only sft, dft and spft are supported")
     if not 0 <= config.optim.warmup_steps_ratio <= 1 or config.optim.lr <= 0:
         raise ValueError("Invalid learning rate or warmup ratio")
     # Validate SPFT hyperparameters before allocating a model.

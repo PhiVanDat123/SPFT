@@ -38,16 +38,17 @@ This adds the exploratory setup from paper section 4.3: UltraFeedback SFT data, 
 python -m pip install -r requirements.txt
 bash verl/download_codegen_dataset.sh
 N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 CODEGEN_MODELS=Qwen/Qwen2.5-Coder-3B bash verl/sweep_codegen_dft.sh
+N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 CODEGEN_MODELS=Qwen/Qwen2.5-Coder-3B bash verl/sweep_codegen_sft.sh
 N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 CODEGEN_MODELS=Qwen/Qwen2.5-Coder-3B bash verl/sweep_codegen_spft.sh
 ```
 
 - Dataset output: `verl/data/ultrafeedback_codegen/{train,test}.parquet`.
 - Downloader source defaults to `openbmb/UltraFeedback`. It samples usable rows, selects the response with the highest average numeric score, and writes 10,000 train rows plus 500 validation rows by default.
 - Downloader knobs: `ULTRAFEEDBACK_SOURCE`, `ULTRAFEEDBACK_SPLIT`, `ULTRAFEEDBACK_REVISION`, `CODEGEN_TRAIN_SIZE`, `CODEGEN_VAL_SIZE`, `SEED`.
-- Training wrappers set `DATASET_TYPE=ultrafeedback`, `TRAIN_BATCH_SIZE=16`, `MICRO_BATCH_SIZE_PER_GPU=1`, `WARMUP_STEPS_RATIO=0.05`, `TOTAL_EPOCHS=1`, and `OPTIM_LR=5e-5` by default.
+- Training wrappers set `DATASET_TYPE=ultrafeedback`, `TRAIN_BATCH_SIZE=16`, `MICRO_BATCH_SIZE_PER_GPU=1`, `WARMUP_STEPS_RATIO=0.05`, `TOTAL_EPOCHS=1`, and `OPTIM_LR=5e-5` by default. Use `sweep_codegen_sft.sh` for the SFT baseline, `sweep_codegen_dft.sh` for DFT, and `sweep_codegen_spft.sh` for SPFT.
 - Model sweep knob: `CODEGEN_MODELS`, for example `Qwen/Qwen2.5-3B`, `Qwen/Qwen2.5-Coder-3B`, or `Qwen/Qwen2.5-Coder-7B`.
 
-HumanEval/HumanEval+ eval uses EvalPlus:
+HumanEval/HumanEval+ eval uses EvalPlus with vLLM by default:
 
 ```bash
 python -m pip install -r requirements-eval.txt

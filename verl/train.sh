@@ -14,7 +14,7 @@ done
     echo 'TRAIN_BATCH_SIZE must be divisible by N_GPUS * MICRO_BATCH_SIZE_PER_GPU' >&2; exit 2;
 }
 mode="${LOSS_MODE:-dft}"
-[[ "$mode" == dft || "$mode" == spft ]] || { echo 'LOSS_MODE must be dft or spft' >&2; exit 2; }
+[[ "$mode" == sft || "$mode" == dft || "$mode" == spft ]] || { echo 'LOSS_MODE must be sft, dft or spft' >&2; exit 2; }
 run_name="${EXPERIMENT_NAME:-numina-${mode}-$(date +%Y%m%d-%H%M%S)-$$}"
 train_file="${TRAIN_FILE:-${script_dir}/data/numina_cot/train.parquet}"
 val_file="${VAL_FILE:-${script_dir}/data/numina_cot/test.parquet}"

@@ -18,11 +18,13 @@ def spft_token_weights(log_probs, reference_log_probs, lambda_=0.1, eps=1e-6):
 
 
 def token_weights(log_probs, mode, reference_log_probs=None, lambda_=0.1, eps=1e-6):
+    if mode == "sft":
+        return torch.ones_like(log_probs, dtype=torch.float32)
     if mode == "dft":
         return log_probs.detach().float().exp()
     if mode == "spft" and reference_log_probs is not None:
         return spft_token_weights(log_probs, reference_log_probs, lambda_, eps)
-    raise ValueError("Use dft, or spft with reference log probabilities")
+    raise ValueError("Use sft, dft, or spft with reference log probabilities")
 
 
 def normalized_backward_loss(weighted_token_sum, global_token_count, world_size):
