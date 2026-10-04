@@ -64,3 +64,17 @@ MODEL_NAME_OR_PATH=/path/to/checkpoint CODEGEN_EVALS=humaneval,multiple MULTIPLE
 
 `MULTIPLE_LANGS` defaults to `py,cpp,java,php,ts,cs,sh,js`, matching the paper columns Python/C++/Java/PHP/TS/C#/Bash/JS. EvalPlus and MultiPL-E download their benchmark data as needed. Outputs default to `verl/codegen_eval_outputs/...`.
 MultiPL-E generation uses `automodel_vllm.py` by default (`MULTIPLE_BACKEND=vllm`) and passes `MULTIPLE_NUM_GPUS` to vLLM, defaulting to `EVAL_TP`/`N_GPUS`/`1`. Set `MULTIPLE_BACKEND=transformers` to use MultiPL-E's non-vLLM `automodel.py`.
+
+If Docker/Podman is unavailable on the GPU server, generate completions there and run the execution step later on a local machine with Docker:
+
+```bash
+# On the GPU server: generate MultiPL-E completions only.
+MODEL_NAME_OR_PATH=/path/to/checkpoint CODEGEN_EVALS=multiple MULTIPLE_REPO=/path/to/MultiPL-E \
+  MULTIPLE_RUN_TESTS=false OUTPUT_DIR=/path/to/codegen_eval_outputs bash verl/eval_codegen.sh
+
+# Copy /path/to/codegen_eval_outputs/multiple to a machine that can run Docker/Podman.
+# On the local machine, from the MultiPL-E checkout:
+docker run --rm --network none -v /path/to/codegen_eval_outputs/multiple:/out:rw \
+  ghcr.io/nuprl/multipl-e-evaluation --dir /out --output-dir /out --recursive
+python pass_k.py /path/to/codegen_eval_outputs/multiple/*
+```
