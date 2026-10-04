@@ -37,9 +37,9 @@ This adds the exploratory setup from paper section 4.3: UltraFeedback SFT data, 
 ```bash
 python -m pip install -r requirements.txt
 bash verl/download_codegen_dataset.sh
-N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 CODEGEN_MODELS=Qwen/Qwen2.5-Coder-3B bash verl/sweep_codegen_dft.sh
-N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 CODEGEN_MODELS=Qwen/Qwen2.5-Coder-3B bash verl/sweep_codegen_sft.sh
-N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 CODEGEN_MODELS=Qwen/Qwen2.5-Coder-3B bash verl/sweep_codegen_spft.sh
+N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 CODEGEN_MODELS=Qwen2.5-Coder-7B bash verl/sweep_codegen_dft.sh
+N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 CODEGEN_MODELS=Qwen2.5-Coder-7B bash verl/sweep_codegen_sft.sh
+N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 CODEGEN_MODELS=Qwen2.5-Coder-7B bash verl/sweep_codegen_spft.sh
 ```
 
 - Dataset output: `verl/data/ultrafeedback_codegen/{train,test}.parquet`.
