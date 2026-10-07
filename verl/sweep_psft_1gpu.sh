@@ -5,7 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 for epochs in ${EPOCHS_LIST:-1}; do
     for clip_low in ${PSFT_CLIP_RATIO_LOWS:-0.2}; do
         for clip_high in ${PSFT_CLIP_RATIO_HIGHS:-0.28}; do
-            for lr in ${OPTIM_LRS:-1e-6}; do
+            for lr in ${OPTIM_LRS:-5e-5}; do
                 for wd in ${OPTIM_WEIGHT_DECAYS:-0.1}; do
                     name="numina-psft_adamw_lr${lr}_clip${clip_low}-${clip_high}_wd${wd}_${epochs}ep_seed${SEED:-1}_$(date +%Y%m%d-%H%M%S)-$$"
                     LOSS_MODE=psft PSFT_CLIP_RATIO_LOW="$clip_low" PSFT_CLIP_RATIO_HIGH="$clip_high" \
