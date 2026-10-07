@@ -1,6 +1,7 @@
-import pytest
 import torch
-from verl.trainer.spft import normalized_backward_loss, spft_token_weights, token_weights
+import pytest
+
+from verl.trainer.spft import normalized_backward_loss, psft_token_losses, spft_token_weights, token_weights
 
 
 def test_reference_equality_and_lambda_zero():
@@ -21,13 +22,25 @@ def test_preference_direction_and_stability():
     assert (result >= 0).all()
 
 
+def test_psft_clipped_surrogate():
+    ref = torch.zeros(3)
+    logp = torch.tensor([0.0, 0.1, 0.5], requires_grad=True)
+    loss = psft_token_losses(logp, ref, clip_ratio_low=0.2, clip_ratio_high=0.28)
+    expected = -torch.tensor([1.0, 0.1, 0.28]).exp().clamp(max=1.28)
+    torch.testing.assert_close(loss.detach(), expected)
+    loss.sum().backward()
+    assert logp.grad[0] < 0
+    assert logp.grad[1] < 0
+    assert logp.grad[2].item() == 0
+
+
 @pytest.mark.parametrize("lambda_,eps", [(-1, 1e-6), (float("nan"), 1e-6), (0.1, 0), (0.1, 0.5)])
 def test_invalid_parameters(lambda_, eps):
     with pytest.raises(ValueError):
         spft_token_weights(torch.zeros(2), torch.zeros(2), lambda_, eps)
 
 
-@pytest.mark.parametrize("mode", ["sft", "dft", "spft"])
+@pytest.mark.parametrize("mode", ["sft", "dft", "spft", "psft"])
 @pytest.mark.parametrize("micro", [1, 2, 4])
 def test_accumulation_matches_global_token_gradient(mode, micro):
     torch.manual_seed(7)
@@ -38,6 +51,8 @@ def test_accumulation_matches_global_token_gradient(mode, micro):
 
     def objective(value, y, m, r):
         ce = torch.nn.functional.cross_entropy(value.flatten(0, 1), y.flatten(), reduction="none").reshape_as(y)
+        if mode == "psft":
+            return (psft_token_losses(-ce, r) * m).sum()
         return (ce * token_weights(-ce, mode, r) * m).sum()
 
     baseline = objective(logits, labels, mask, ref) / mask.sum()

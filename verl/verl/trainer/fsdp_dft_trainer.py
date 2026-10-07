@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from transformers import AutoModelForCausalLM, AutoTokenizer, get_cosine_schedule_with_warmup, set_seed
 
 from .data import ValidationSampler, build_dataset
-from .spft import normalized_backward_loss, token_weights
+from .spft import normalized_backward_loss, psft_token_losses, token_weights
 
 
 def file_sha256(path):
@@ -34,12 +34,12 @@ def file_sha256(path):
     return h.hexdigest()
 
 
-def sufficient_statistics(ce, weights, mask, threshold):
+def sufficient_statistics(ce, objective, mask, weights, threshold):
     """Token sums, later reduced over micro-batches AND all ranks."""
     valid = mask.bool()
-    ce, weights = ce[valid].double(), weights[valid].double()
+    ce, objective, weights = ce[valid].double(), objective[valid].double(), weights[valid].double()
     return torch.stack([
-        (ce * weights).sum(), ce.sum(), ce.new_tensor(ce.numel()),
+        objective.sum(), ce.sum(), ce.new_tensor(ce.numel()),
         weights.sum(), (weights > threshold).double().sum(),
     ])
 
@@ -76,11 +76,20 @@ def token_losses(model, reference, batch, config, device):
         ce = F.cross_entropy(
             logits.float().reshape(-1, logits.size(-1)), labels.reshape(-1), reduction="none",
         ).reshape_as(labels)
-    weights = token_weights(
-        -ce, config.optim.loss_mode, ref_log_probs,
-        config.optim.spft["lambda"], config.optim.spft.eps,
-    )
-    return ce, weights, batch["loss_mask"].to(device)
+    log_probs = -ce
+    if config.optim.loss_mode == "psft":
+        objective = psft_token_losses(
+            log_probs, ref_log_probs,
+            config.optim.psft.clip_ratio_low, config.optim.psft.clip_ratio_high,
+        )
+        weights = (log_probs - ref_log_probs).detach().exp()
+    else:
+        weights = token_weights(
+            log_probs, config.optim.loss_mode, ref_log_probs,
+            config.optim.spft["lambda"], config.optim.spft.eps,
+        )
+        objective = ce * weights
+    return ce, objective, weights, batch["loss_mask"].to(device)
 
 
 def save_checkpoint(model, tokenizer, root, step, config):
@@ -103,8 +112,8 @@ def validate(model, reference, loader, config, device):
     stats = torch.zeros(5, dtype=torch.float64, device=device)
     with torch.no_grad():
         for batch in loader:
-            ce, weights, mask = token_losses(model, reference, batch, config, device)
-            stats += sufficient_statistics(ce, weights, mask, config.optim.spft.weight_threshold)
+            ce, objective, weights, mask = token_losses(model, reference, batch, config, device)
+            stats += sufficient_statistics(ce, objective, mask, weights, config.optim.spft.weight_threshold)
     result = reduce_metrics(stats, "val")
     model.train()
     return result
@@ -113,13 +122,15 @@ def validate(model, reference, loader, config, device):
 def run(config):
     if not torch.cuda.is_available():
         raise RuntimeError("Training requires CUDA; use torchrun via the sweep scripts")
-    if config.optim.loss_mode not in {"sft", "dft", "spft"}:
-        raise ValueError("Only sft, dft and spft are supported")
+    if config.optim.loss_mode not in {"sft", "dft", "spft", "psft"}:
+        raise ValueError("Only sft, dft, spft and psft are supported")
     if not 0 <= config.optim.warmup_steps_ratio <= 1 or config.optim.lr <= 0:
         raise ValueError("Invalid learning rate or warmup ratio")
     # Validate SPFT hyperparameters before allocating a model.
     token_weights(torch.zeros(1), "spft", torch.zeros(1),
                   config.optim.spft["lambda"], config.optim.spft.eps)
+    psft_token_losses(torch.zeros(1), torch.zeros(1),
+                      config.optim.psft.clip_ratio_low, config.optim.psft.clip_ratio_high)
     local_rank = int(os.environ["LOCAL_RANK"])
     torch.cuda.set_device(local_rank)
     dist.init_process_group("nccl")
@@ -179,7 +190,7 @@ def run(config):
     if resolved_revision:
         model_kwargs["revision"] = resolved_revision
     reference = None
-    if config.optim.loss_mode == "spft":
+    if config.optim.loss_mode in {"spft", "psft"}:
         reference = AutoModelForCausalLM.from_pretrained(config.model.partial_pretrain, **model_kwargs)
         reference.requires_grad_(False).eval()
         if not config.optim.spft.reference_cpu_offload:
@@ -253,10 +264,10 @@ def run(config):
             stats = torch.zeros(5, dtype=torch.float64, device=device)
             for start in range(0, local_batch, micro_batch):
                 micro = {key: value[start:start + micro_batch] for key, value in batch.items()}
-                ce, weights, mask = token_losses(model, reference, micro, config, device)
-                loss = normalized_backward_loss((ce * weights * mask).sum(), count, world_size)
+                ce, objective, weights, mask = token_losses(model, reference, micro, config, device)
+                loss = normalized_backward_loss((objective * mask).sum(), count, world_size)
                 loss.backward()
-                stats += sufficient_statistics(ce.detach(), weights, mask, config.optim.spft.weight_threshold)
+                stats += sufficient_statistics(ce.detach(), objective.detach(), mask, weights, config.optim.spft.weight_threshold)
             grad_norm = model.clip_grad_norm_(config.optim.clip_grad)
             if not torch.isfinite(grad_norm):
                 raise FloatingPointError("Nonfinite gradient norm")

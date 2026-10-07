@@ -9,7 +9,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("mode", ["dft", "spft"])
+@pytest.mark.parametrize("mode", ["dft", "spft", "psft"])
 @pytest.mark.parametrize("gpus", [1, 2, 4])
 def test_sweep_dry_run(mode, gpus):
     result = subprocess.run(
@@ -24,7 +24,7 @@ def test_sweep_dry_run(mode, gpus):
     assert any(str(ROOT) in arg for arg in args)
 
 
-@pytest.mark.parametrize("mode", ["sft", "dft", "spft"])
+@pytest.mark.parametrize("mode", ["sft", "dft", "spft", "psft"])
 def test_codegen_sweep_dry_run(mode):
     result = subprocess.run(
         ["bash", str(ROOT / "verl" / f"sweep_codegen_{mode}.sh"), "trainer.max_steps=2"],
@@ -37,6 +37,18 @@ def test_codegen_sweep_dry_run(mode):
     assert "data.train_batch_size=16" in args
     assert "optim.warmup_steps_ratio=0.05" in args
     assert "trainer.total_epochs=1" in args
+
+
+def test_psft_dry_run_has_clip_controls():
+    result = subprocess.run(
+        ["bash", str(ROOT / "verl" / "sweep_psft_1gpu.sh"), "trainer.max_steps=2"],
+        env={**os.environ, "DRY_RUN": "1", "N_GPUS": "1"},
+        check=True, capture_output=True, text=True,
+    )
+    args = shlex.split(result.stdout)
+    assert "optim.loss_mode=psft" in args
+    assert "optim.psft.clip_ratio_low=0.2" in args
+    assert "optim.psft.clip_ratio_high=0.28" in args
 
 
 def test_reject_invalid_batch():
@@ -62,3 +74,16 @@ def test_codegen_eval_multiple_defaults_to_vllm():
     assert "automodel_vllm.py" in script
     assert "--num-gpus" in script
     assert "MULTIPLE_BACKEND=transformers" in script
+
+
+def test_codegen_eval_humaneval_defaults_to_greedy_pass_1():
+    script = (ROOT / "verl" / "eval_codegen.sh").read_text()
+    assert "--greedy" in script
+    assert "--n-samples" not in script
+    assert '--pass-k "${EVALPLUS_PASS_K:-1}"' in script
+
+
+def test_codegen_eval_multiple_defaults_to_greedy_pass_1():
+    script = (ROOT / "verl" / "eval_codegen.sh").read_text()
+    assert '--temperature "${MULTIPLE_TEMPERATURE:-0}"' in script
+    assert '--completion-limit "${MULTIPLE_COMPLETION_LIMIT:-1}"' in script

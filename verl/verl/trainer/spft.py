@@ -17,6 +17,19 @@ def spft_token_weights(log_probs, reference_log_probs, lambda_=0.1, eps=1e-6):
         return (p * torch.sigmoid(-lambda_ * log_odds_delta)).detach()
 
 
+def psft_token_losses(log_probs, reference_log_probs, clip_ratio_low=0.2, clip_ratio_high=0.28):
+    """Proximal SFT token objective from PSFT's PPO-style clipped surrogate."""
+    if log_probs.shape != reference_log_probs.shape:
+        raise ValueError("Policy and reference log probabilities must have identical shapes")
+    if not math.isfinite(clip_ratio_low) or not math.isfinite(clip_ratio_high):
+        raise ValueError("PSFT clip ratios must be finite")
+    if clip_ratio_low < 0 or clip_ratio_high < 0:
+        raise ValueError("PSFT clip ratios must be non-negative")
+    ratio = (log_probs - reference_log_probs).exp()
+    clipped = ratio.clamp(1 - clip_ratio_low, 1 + clip_ratio_high)
+    return -torch.minimum(ratio, clipped)
+
+
 def token_weights(log_probs, mode, reference_log_probs=None, lambda_=0.1, eps=1e-6):
     if mode == "sft":
         return torch.ones_like(log_probs, dtype=torch.float32)

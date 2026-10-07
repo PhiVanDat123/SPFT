@@ -5,7 +5,7 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
-from verl.trainer.spft import normalized_backward_loss, token_weights
+from verl.trainer.spft import normalized_backward_loss, psft_token_losses, token_weights
 
 
 def worker(rank, rendezvous, destination):
@@ -16,19 +16,26 @@ def worker(rank, rendezvous, destination):
     labels = torch.randint(5, (4, 2))
     mask = torch.tensor([[1, 0], [1, 1], [0, 0], [1, 1]], dtype=torch.bool)
     ref = torch.full((4, 2), -1.7)
-    for mode in ("dft", "spft"):
+    for mode in ("dft", "spft", "psft"):
         parameter.grad = None
         count = mask[rank::2].sum()
         dist.all_reduce(count)
         for i in range(rank, 4, 2):
             ce = torch.nn.functional.cross_entropy(inputs[i] @ parameter, labels[i], reduction="none")
-            value = (ce * token_weights(-ce, mode, ref[i]) * mask[i]).sum()
+            if mode == "psft":
+                value = (psft_token_losses(-ce, ref[i]) * mask[i]).sum()
+            else:
+                value = (ce * token_weights(-ce, mode, ref[i]) * mask[i]).sum()
             normalized_backward_loss(value, count, 2).backward()
         # Simulate FSDP's average after summing micro-batch gradients.
         dist.all_reduce(parameter.grad)
         parameter.grad /= 2
         ce = torch.nn.functional.cross_entropy((inputs @ parameter).reshape(-1, 5), labels.flatten(), reduction="none").reshape(4, 2)
-        expected = torch.autograd.grad((ce * token_weights(-ce, mode, ref) * mask).sum() / mask.sum(), parameter)[0]
+        if mode == "psft":
+            objective = psft_token_losses(-ce, ref)
+        else:
+            objective = ce * token_weights(-ce, mode, ref)
+        expected = torch.autograd.grad((objective * mask).sum() / mask.sum(), parameter)[0]
         torch.testing.assert_close(parameter.grad, expected)
     if rank == 0:
         Path(destination).write_text("ok")

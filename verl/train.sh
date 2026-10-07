@@ -14,7 +14,7 @@ done
     echo 'TRAIN_BATCH_SIZE must be divisible by N_GPUS * MICRO_BATCH_SIZE_PER_GPU' >&2; exit 2;
 }
 mode="${LOSS_MODE:-dft}"
-[[ "$mode" == sft || "$mode" == dft || "$mode" == spft ]] || { echo 'LOSS_MODE must be sft, dft or spft' >&2; exit 2; }
+[[ "$mode" == sft || "$mode" == dft || "$mode" == spft || "$mode" == psft ]] || { echo 'LOSS_MODE must be sft, dft, spft or psft' >&2; exit 2; }
 run_name="${EXPERIMENT_NAME:-numina-${mode}-$(date +%Y%m%d-%H%M%S)-$$}"
 train_file="${TRAIN_FILE:-${script_dir}/data/numina_cot/train.parquet}"
 val_file="${VAL_FILE:-${script_dir}/data/numina_cot/test.parquet}"
@@ -31,6 +31,8 @@ cmd=("$python_bin" -m torch.distributed.run --standalone --nnodes=1 "--nproc_per
     "optim.weight_decay=${OPTIM_WEIGHT_DECAY:-0.01}"
     "optim.spft.lambda=${SPFT_LAMBDA:-0.1}"
     "optim.spft.reference_cpu_offload=${SPFT_REFERENCE_CPU_OFFLOAD:-false}"
+    "optim.psft.clip_ratio_low=${PSFT_CLIP_RATIO_LOW:-0.2}"
+    "optim.psft.clip_ratio_high=${PSFT_CLIP_RATIO_HIGH:-0.28}"
     "trainer.total_epochs=${TOTAL_EPOCHS:-1}" "trainer.seed=${SEED:-1}"
     "trainer.test_freq=${TEST_FREQ:-10}" "trainer.save_freq=${SAVE_FREQ:--1}"
     "trainer.default_local_dir='$save_path'" "trainer.experiment_name='$run_name'"

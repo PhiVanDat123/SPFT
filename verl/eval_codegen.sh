@@ -31,6 +31,7 @@ for name in "${names[@]}"; do
                 --model "$MODEL_NAME_OR_PATH" --dataset humaneval \
                 --backend "${EVALPLUS_BACKEND:-vllm}" --greedy \
                 --tp "${EVAL_TP:-${N_GPUS:-1}}" --root "$output/evalplus"
+            "${PYTHON_BIN:-python}" "$script_dir/summarize_evalplus.py" "$output/evalplus" --pass-k "${EVALPLUS_PASS_K:-1}"
             ;;
         multiple)
             : "${MULTIPLE_REPO:?Set MULTIPLE_REPO to a local MultiPL-E checkout for CODEGEN_EVALS=multiple}"
@@ -62,9 +63,9 @@ for name in "${names[@]}"; do
                         --name "$MODEL_NAME_OR_PATH"
                         --root-dataset humaneval
                         --lang "$lang"
-                        --temperature "${MULTIPLE_TEMPERATURE:-0.2}"
+                        --temperature "${MULTIPLE_TEMPERATURE:-0}"
                         --batch-size "${MULTIPLE_BATCH_SIZE:-20}"
-                        --completion-limit "${MULTIPLE_COMPLETION_LIMIT:-20}"
+                        --completion-limit "${MULTIPLE_COMPLETION_LIMIT:-1}"
                         --output-dir-prefix "$lang_out")
                     if [[ "$multiple_backend" == vllm ]]; then
                         cmd+=(--num-gpus "${MULTIPLE_NUM_GPUS:-${EVAL_TP:-${N_GPUS:-1}}}")
