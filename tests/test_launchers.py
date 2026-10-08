@@ -9,7 +9,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("mode", ["dft", "spft", "psft"])
+@pytest.mark.parametrize("mode", ["sft", "dft", "spft", "psft"])
 @pytest.mark.parametrize("gpus", [1, 2, 4])
 def test_sweep_dry_run(mode, gpus):
     result = subprocess.run(

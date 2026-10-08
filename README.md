@@ -8,6 +8,7 @@ DFT/SPFT + AdamW, adapted from upstream DFT `11e395d4`. Source and license detai
 python -m pip install -r requirements.txt
 python -m pip install flash-attn --no-build-isolation
 bash verl/download_datasets.sh
+N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 bash verl/sweep_sft_1gpu.sh
 N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 bash verl/sweep_dft_1gpu.sh
 N_GPUS=2 CUDA_VISIBLE_DEVICES=0,1 bash verl/sweep_spft_1gpu.sh
 python -m pytest -q tests
@@ -15,9 +16,9 @@ python -m pytest -q tests
 
 - Default training dataset: 100,000 Numina train examples. Numina test is used as validation. Set `VAL_FILE` to use another parquet validation file with `extra_info.question/answer`.
 - Global batch is 256 and micro-batch/GPU is 8 by default. Override with `TRAIN_BATCH_SIZE` and `MICRO_BATCH_SIZE_PER_GPU`. Global batch must be divisible by `N_GPUS * MICRO_BATCH_SIZE_PER_GPU`.
-- Sweeps: `OPTIM_LRS`, `OPTIM_WEIGHT_DECAYS`, `EPOCHS_LIST`, `SPFT_LAMBDAS`. Change model with `MODEL_NAME`; set `DRY_RUN=1` to print the launch command. Extra Hydra overrides can be appended to the command.
+- Sweeps: `sweep_sft_1gpu.sh`, `sweep_dft_1gpu.sh`, `sweep_spft_1gpu.sh`, and `sweep_psft_1gpu.sh` support `OPTIM_LRS`, `OPTIM_WEIGHT_DECAYS`, and `EPOCHS_LIST`; SPFT also supports `SPFT_LAMBDAS`, while PSFT supports `PSFT_CLIP_RATIO_LOWS` and `PSFT_CLIP_RATIO_HIGHS`. Change model with `MODEL_NAME`; set `DRY_RUN=1` to print the launch command. Extra Hydra overrides can be appended to the command.
 - Liger is off by default. `USE_LIGER=true` requires `liger-kernel`; `USE_WANDB=true` requires `wandb`. If FlashAttention is unavailable, append `model.attention=sdpa`.
-- Full fine-tuning uses FSDP1. SPFT keeps a fixed reference model, one replica per GPU, with optional `SPFT_REFERENCE_CPU_OFFLOAD=true`. Saved checkpoints are Hugging Face checkpoints and do not include optimizer state/resume state.
+- Full fine-tuning uses FSDP1. SFT/DFT use only the trainable model; SPFT/PSFT keep a fixed reference model, one replica per GPU, with optional `SPFT_REFERENCE_CPU_OFFLOAD=true`. Saved checkpoints are Hugging Face checkpoints and do not include optimizer state/resume state.
 - Gradient accumulation and token normalization are computed over the full global batch. Validation covers every example exactly once across ranks. `weight_threshold` is metric-only.
 
 Math eval, preferably in a separate environment:
